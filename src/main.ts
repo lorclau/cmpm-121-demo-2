@@ -1,6 +1,6 @@
 import "./style.css";
 
-const APP_NAME = "Scribbler";
+const APP_NAME = "Sketchpad";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
@@ -8,7 +8,7 @@ app.innerHTML = APP_NAME;
 
 // Create the app title
 const appTitle = document.createElement('h1');
-appTitle.textContent = 'The Scribble App';
+appTitle.textContent = 'Scribbler';
 app.append(appTitle);
 
 // Create the canvas
@@ -22,6 +22,15 @@ const clearButton = document.createElement('button');
 clearButton.textContent = 'Clear';
 app.append(clearButton);
 
+// Create an undo and redo button
+const undoButton = document.createElement('button');
+undoButton.textContent = 'Undo';
+app.append(undoButton);
+
+const redoButton = document.createElement('button');
+redoButton.textContent = 'Redo';
+app.append(redoButton);
+
 // Get the canvas context
 const ctx = canvas.getContext('2d');
 
@@ -31,8 +40,9 @@ let lastX = 0;
 // deno-lint-ignore no-unused-vars
 let lastY = 0;
 
-//Array to hold the points
+//Array to hold the points and array for redos
 const points: Array<Array<{ x: number; y: number }>> = [];
+const redoStack: Array<Array<{ x: number; y: number }>> = [];
 
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
@@ -53,8 +63,6 @@ function draw(event: MouseEvent) {
     [lastX, lastY] = [newPoint.x, newPoint.y];
 }
 
-
-
 // Dispatch the "drawing-changed" event
 function dispatchDrawingChanged() {
     const drawingChangedEvent = new Event('drawing-changed');
@@ -70,6 +78,7 @@ function stopDrawing() {
 // Function to clear the canvas
 function clearCanvas() {
     points.length = 0; // Clear stored points
+    redoStack.length = 0; // Clear redo stack
     ctx!.clearRect(0, 0, canvas.width, canvas.height);
 }
 
@@ -92,12 +101,34 @@ function redraw() {
     });
 }
 
+// Function to undo the last drawing
+function undo() {
+    if (points.length === 0) return; // Nothing to undo
+    const lastLine = points.pop();
+    if (lastLine) {
+        redoStack.push(lastLine); // Add the line to the redo stack
+        dispatchDrawingChanged(); // Trigger a redraw
+    }
+}
+
+// Function to redo the last undone drawing
+function redo() {
+    if (redoStack.length === 0) return; // Nothing to redo
+    const lastRedoLine = redoStack.pop();
+    if (lastRedoLine) {
+        points.push(lastRedoLine); // Add it back to the points
+        dispatchDrawingChanged(); // Trigger a redraw
+    }
+}
+
 // Event listeners
 canvas.addEventListener('mousedown', startDrawing);
 canvas.addEventListener('mousemove', draw);
 canvas.addEventListener('mouseup', stopDrawing);
 canvas.addEventListener('mouseout', stopDrawing);
 clearButton.addEventListener('click', clearCanvas);
+undoButton.addEventListener('click', undo);
+redoButton.addEventListener('click', redo);
 canvas.addEventListener('drawing-changed', redraw);
 
 
