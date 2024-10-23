@@ -35,6 +35,15 @@ h1 {
   line-height: 1.1;
 }
 
+canvas {
+  background-color: white;
+  border: 2px solid black; /* Thin black border */
+  border-radius: 12px;     /* Friendly rounded corners */
+  box-shadow: 3px 3px 25px rgba(0, 0, 0, 0.5); /* Drop shadow */
+  display: block;          /* Ensures the canvas takes a block level space */
+  margin: 20px auto;      /* Center the canvas with auto margins */
+}
+
 #app {
   max-width: 1280px;
   margin: 0 auto;
