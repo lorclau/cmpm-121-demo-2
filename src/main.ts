@@ -14,6 +14,17 @@ interface ToolPreview {
     draw(ctx: CanvasRenderingContext2D): void;
 }
 
+// Sticker interface
+interface Sticker {
+    x: number;
+    y: number;
+    drag(x: number, y: number): void;
+    display(ctx: CanvasRenderingContext2D): void;
+}
+
+// Create a union type for lines and stickers
+type Drawable = MarkerLine | Sticker;
+
 // Function to create a new MarkerLine
 function createMarkerLine(initialX: number, initialY: number, thickness: number): MarkerLine {
     const points = [{ x: initialX, y: initialY }];
@@ -47,6 +58,23 @@ function createToolPreview(thickness: number): ToolPreview {
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.thickness, 0, Math.PI * 2); // Circle as the preview
             ctx.fill();
+        }
+    };
+}
+
+// Function to create a new Sticker
+function createSticker(emoji: string): Sticker {
+    return {
+        x: 0,
+        y: 0,
+        display(ctx: CanvasRenderingContext2D) { 
+            ctx.font = '30px Arial'; // Set font size
+            ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+            ctx.fillText(emoji, this.x, this.y); // Draw emoji at current position
+        },
+        drag(x: number, y: number) {
+            this.x = x;
+            this.y = y; // Update position without history
         }
     };
 }
@@ -94,6 +122,14 @@ const thickButton = document.createElement('button');
 thickButton.textContent = '●';
 app.append(thickButton);
 
+// Create emoji buttons
+const emojiButtons = ['😊', '🐶', '🎉'].map(emoji => {
+    const button = document.createElement('button');
+    button.textContent = emoji;
+    app.append(button);
+    return button;
+});
+
 // Get the canvas context
 const ctx = canvas.getContext('2d');
 
@@ -101,10 +137,11 @@ let isDrawing = false;
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2; // Default thickness
 let toolPreview: ToolPreview | null = createToolPreview(currentThickness); // Initialize tool preview
+let currentSticker: Sticker | null = null; // For emoji stickers
 
 //Arrays to hold lines and redo stack
-const lines: MarkerLine[] = [];
-const redoStack: MarkerLine[] = [];
+const lines: Drawable[] = [];
+const redoStack: Drawable[] = [];
 
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
@@ -153,6 +190,7 @@ function redraw() {
     lines.forEach(line => line.display(ctx!)); // Display all lines
     if (currentLine) currentLine.display(ctx!); // Display the current line if drawing
     if (toolPreview) toolPreview.draw(ctx!); // Draw the tool preview if visible
+    if (currentSticker) currentSticker.display(ctx!); // Display the current sticker if selected
 }
 
 // Function to undo the last drawing
@@ -190,8 +228,12 @@ canvas.addEventListener('mousemove', (event) => {
     if (isDrawing) {
         draw(event); // Update drawing and preview while the mouse is down
     } else {
-        toolPreview!.x = event.offsetX; // Update tool preview position
-        toolPreview!.y = event.offsetY; // Update tool preview position
+        if (currentSticker) {
+            currentSticker.drag(event.offsetX, event.offsetY); // Update sticker position
+        } else {
+            toolPreview!.x = event.offsetX; // Update tool preview position
+            toolPreview!.y = event.offsetY; // Update tool preview position
+        }
         dispatchToolMoved(); // Dispatch tool-moved event
         redraw(); // Redraw the canvas to show the preview
     }
@@ -206,6 +248,24 @@ canvas.addEventListener('drawing-changed', redraw);
 // Tool button listeners
 thinButton.addEventListener('click', () => setThickness(2, thinButton)); // Set thickness to 2 for thin marker
 thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Set thickness to 5 for thick marker
+
+// Emoji button listeners
+emojiButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+        const emoji = button.textContent || '';
+        currentSticker = createSticker(emoji);
+        dispatchToolMoved(); // Dispatch tool-moved event when an emoji is selected
+    });
+});
+
+// Handle canvas click to place sticker
+canvas.addEventListener('click', () => {
+    if (currentSticker) {
+        lines.push(currentSticker); // Place sticker in lines for drawing
+        currentSticker = null; // Reset current sticker
+        dispatchDrawingChanged(); // Trigger a redraw
+    }
+});
 
 // Set the thin marker as the default tool on load
 setThickness(2, thinButton); // Set initial thickness and style feedback
