@@ -1,20 +1,23 @@
 // Define the MarkerLine interface
 interface MarkerLine {
     points: Array<{ x: number; y: number }>;
+    thickness: number; // Added thickness property
     drag(x: number, y: number): void;
     display(ctx: CanvasRenderingContext2D): void;
 }
 
 // Function to create a new MarkerLine
-function createMarkerLine(initialX: number, initialY: number): MarkerLine {
+function createMarkerLine(initialX: number, initialY: number, thickness: number): MarkerLine {
     const points = [{ x: initialX, y: initialY }];
     
     return {
         points,
+        thickness,
         drag(x: number, y: number) {
             points.push({ x, y });
         },
         display(ctx: CanvasRenderingContext2D) {
+            ctx.lineWidth = thickness; // Use the specified thickness
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
             for (const point of points) {
@@ -59,11 +62,21 @@ const redoButton = document.createElement('button');
 redoButton.textContent = 'Redo';
 app.append(redoButton);
 
+// Create tool buttons
+const thinButton = document.createElement('button');
+thinButton.textContent = '•';
+app.append(thinButton);
+
+const thickButton = document.createElement('button');
+thickButton.textContent = '●';
+app.append(thickButton);
+
 // Get the canvas context
 const ctx = canvas.getContext('2d');
 
 let isDrawing = false;
 let currentLine: MarkerLine | null = null;
+let currentThickness = 2; // Default thickness
 
 //Arrays to hold lines and redo stack
 const lines: MarkerLine[] = [];
@@ -72,7 +85,7 @@ const redoStack: MarkerLine[] = [];
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
-    currentLine = createMarkerLine(event.offsetX, event.offsetY); // Start a new line
+    currentLine = createMarkerLine(event.offsetX, event.offsetY, currentThickness); // Start a new line
 }
 
 // Function to draw on the canvas
@@ -110,7 +123,6 @@ function clearCanvas() {
 function redraw() {
     ctx!.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
     ctx!.strokeStyle = 'black'; // Line color
-    ctx!.lineWidth = 2; // Line width
 
     lines.forEach(line => line.display(ctx!)); // Display all lines
     if (currentLine) currentLine.display(ctx!); // Display the current line if drawing
@@ -136,6 +148,14 @@ function redo() {
     }
 }
 
+// Function to set the current thickness and style feedback
+function setThickness(thickness: number, selectedButton: HTMLButtonElement) {
+    currentThickness = thickness;
+    thinButton.classList.remove('selectedTool');
+    thickButton.classList.remove('selectedTool');
+    selectedButton.classList.add('selectedTool');
+}
+
 // Event listeners
 canvas.addEventListener('mousedown', startDrawing);
 canvas.addEventListener('mousemove', draw);
@@ -145,5 +165,9 @@ clearButton.addEventListener('click', clearCanvas);
 undoButton.addEventListener('click', undo);
 redoButton.addEventListener('click', redo);
 canvas.addEventListener('drawing-changed', redraw);
+
+// Tool button listeners
+thinButton.addEventListener('click', () => setThickness(2, thinButton)); // Set thickness to 2 for thin marker
+thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Set thickness to 5 for thick marker
 
 
