@@ -1,6 +1,34 @@
+// Define the MarkerLine interface
+interface MarkerLine {
+    points: Array<{ x: number; y: number }>;
+    drag(x: number, y: number): void;
+    display(ctx: CanvasRenderingContext2D): void;
+}
+
+// Function to create a new MarkerLine
+function createMarkerLine(initialX: number, initialY: number): MarkerLine {
+    const points = [{ x: initialX, y: initialY }];
+    
+    return {
+        points,
+        drag(x: number, y: number) {
+            points.push({ x, y });
+        },
+        display(ctx: CanvasRenderingContext2D) {
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            for (const point of points) {
+                ctx.lineTo(point.x, point.y);
+            }
+            ctx.stroke();
+        }
+    };
+}
+
+// Create app
 import "./style.css";
 
-const APP_NAME = "Sketchpad";
+const APP_NAME = "Sketchpad:";
 const app = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
@@ -35,32 +63,24 @@ app.append(redoButton);
 const ctx = canvas.getContext('2d');
 
 let isDrawing = false;
-// deno-lint-ignore no-unused-vars
-let lastX = 0;
-// deno-lint-ignore no-unused-vars
-let lastY = 0;
+let currentLine: MarkerLine | null = null;
 
-//Array to hold the points and array for redos
-const points: Array<Array<{ x: number; y: number }>> = [];
-const redoStack: Array<Array<{ x: number; y: number }>> = [];
+//Arrays to hold lines and redo stack
+const lines: MarkerLine[] = [];
+const redoStack: MarkerLine[] = [];
 
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
-    points.push([]); // Start a new line
-    [lastX, lastY] = [event.offsetX, event.offsetY];
+    currentLine = createMarkerLine(event.offsetX, event.offsetY); // Start a new line
 }
 
 // Function to draw on the canvas
 function draw(event: MouseEvent) {
-    if (!isDrawing) return;
+    if (!isDrawing || !currentLine) return;
     
-    const newPoint = { x: event.offsetX, y: event.offsetY };
-    points[points.length - 1].push(newPoint); // Add new point to the current line
-    dispatchDrawingChanged();
-    
-    // Move the lastX and lastY
-    [lastX, lastY] = [newPoint.x, newPoint.y];
+    currentLine.drag(event.offsetX, event.offsetY); // Extend the current line
+    redraw(); // Redraw the canvas
 }
 
 // Dispatch the "drawing-changed" event
@@ -71,13 +91,17 @@ function dispatchDrawingChanged() {
 
 // Function to stop drawing
 function stopDrawing() {
+    if (currentLine) {
+        lines.push(currentLine); // Save the current line
+        currentLine = null; // Reset current line
+        dispatchDrawingChanged();
+    }
     isDrawing = false;
-    ctx!.beginPath(); // Reset the path
 }
 
 // Function to clear the canvas
 function clearCanvas() {
-    points.length = 0; // Clear stored points
+    lines.length = 0; // Clear stored points
     redoStack.length = 0; // Clear redo stack
     ctx!.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -88,23 +112,14 @@ function redraw() {
     ctx!.strokeStyle = 'black'; // Line color
     ctx!.lineWidth = 2; // Line width
 
-    points.forEach(line => {
-        ctx!.beginPath();
-        line.forEach((point, index) => {
-            if (index === 0) {
-                ctx!.moveTo(point.x, point.y);
-            } else {
-                ctx!.lineTo(point.x, point.y);
-            }
-        });
-        ctx!.stroke();
-    });
+    lines.forEach(line => line.display(ctx!)); // Display all lines
+    if (currentLine) currentLine.display(ctx!); // Display the current line if drawing
 }
 
 // Function to undo the last drawing
 function undo() {
-    if (points.length === 0) return; // Nothing to undo
-    const lastLine = points.pop();
+    if (lines.length === 0) return; // Nothing to undo
+    const lastLine = lines.pop();
     if (lastLine) {
         redoStack.push(lastLine); // Add the line to the redo stack
         dispatchDrawingChanged(); // Trigger a redraw
@@ -116,7 +131,7 @@ function redo() {
     if (redoStack.length === 0) return; // Nothing to redo
     const lastRedoLine = redoStack.pop();
     if (lastRedoLine) {
-        points.push(lastRedoLine); // Add it back to the points
+        lines.push(lastRedoLine); // Add it back to the points
         dispatchDrawingChanged(); // Trigger a redraw
     }
 }
