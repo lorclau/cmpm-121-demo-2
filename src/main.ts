@@ -6,6 +6,14 @@ interface MarkerLine {
     display(ctx: CanvasRenderingContext2D): void;
 }
 
+// Define the ToolPreview interface
+interface ToolPreview {
+    x: number;
+    y: number;
+    thickness: number;
+    draw(ctx: CanvasRenderingContext2D): void;
+}
+
 // Function to create a new MarkerLine
 function createMarkerLine(initialX: number, initialY: number, thickness: number): MarkerLine {
     const points = [{ x: initialX, y: initialY }];
@@ -24,6 +32,21 @@ function createMarkerLine(initialX: number, initialY: number, thickness: number)
                 ctx.lineTo(point.x, point.y);
             }
             ctx.stroke();
+        }
+    };
+}
+
+// Function to create a tool preview
+function createToolPreview(thickness: number): ToolPreview {
+    return {
+        x: 0,
+        y: 0,
+        thickness,
+        draw(ctx: CanvasRenderingContext2D) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)'; // Semi-transparent color for the preview
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.thickness, 0, Math.PI * 2); // Circle as the preview
+            ctx.fill();
         }
     };
 }
@@ -77,6 +100,7 @@ const ctx = canvas.getContext('2d');
 let isDrawing = false;
 let currentLine: MarkerLine | null = null;
 let currentThickness = 2; // Default thickness
+let toolPreview: ToolPreview | null = createToolPreview(currentThickness); // Initialize tool preview
 
 //Arrays to hold lines and redo stack
 const lines: MarkerLine[] = [];
@@ -93,6 +117,8 @@ function draw(event: MouseEvent) {
     if (!isDrawing || !currentLine) return;
     
     currentLine.drag(event.offsetX, event.offsetY); // Extend the current line
+    toolPreview!.x = event.offsetX; // Update tool preview position
+    toolPreview!.y = event.offsetY; // Update tool preview position
     redraw(); // Redraw the canvas
 }
 
@@ -126,6 +152,7 @@ function redraw() {
 
     lines.forEach(line => line.display(ctx!)); // Display all lines
     if (currentLine) currentLine.display(ctx!); // Display the current line if drawing
+    if (toolPreview) toolPreview.draw(ctx!); // Draw the tool preview if visible
 }
 
 // Function to undo the last drawing
@@ -151,6 +178,7 @@ function redo() {
 // Function to set the current thickness and style feedback
 function setThickness(thickness: number, selectedButton: HTMLButtonElement) {
     currentThickness = thickness;
+    toolPreview = createToolPreview(thickness); // Update tool preview thickness
     thinButton.classList.remove('selectedTool');
     thickButton.classList.remove('selectedTool');
     selectedButton.classList.add('selectedTool');
@@ -158,7 +186,16 @@ function setThickness(thickness: number, selectedButton: HTMLButtonElement) {
 
 // Event listeners
 canvas.addEventListener('mousedown', startDrawing);
-canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mousemove', (event) => {
+    if (isDrawing) {
+        draw(event); // Update drawing and preview while the mouse is down
+    } else {
+        toolPreview!.x = event.offsetX; // Update tool preview position
+        toolPreview!.y = event.offsetY; // Update tool preview position
+        dispatchToolMoved(); // Dispatch tool-moved event
+        redraw(); // Redraw the canvas to show the preview
+    }
+});
 canvas.addEventListener('mouseup', stopDrawing);
 canvas.addEventListener('mouseout', stopDrawing);
 clearButton.addEventListener('click', clearCanvas);
@@ -170,4 +207,11 @@ canvas.addEventListener('drawing-changed', redraw);
 thinButton.addEventListener('click', () => setThickness(2, thinButton)); // Set thickness to 2 for thin marker
 thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Set thickness to 5 for thick marker
 
+// Set the thin marker as the default tool on load
+setThickness(2, thinButton); // Set initial thickness and style feedback
 
+// Dispatch tool-moved event
+function dispatchToolMoved() {
+    const toolMovedEvent = new Event('tool-moved');
+    canvas.dispatchEvent(toolMovedEvent);
+}
