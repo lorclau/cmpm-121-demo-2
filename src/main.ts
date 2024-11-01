@@ -1,7 +1,8 @@
 // Define MarkerLine interface
 interface MarkerLine {
     points: Array<{ x: number; y: number }>;
-    thickness: number; // Added thickness property
+    thickness: number;
+    color: string;
     drag(x: number, y: number): void;
     display(ctx: CanvasRenderingContext2D): void;
 }
@@ -26,17 +27,19 @@ interface Sticker {
 type Drawable = MarkerLine | Sticker;
 
 // Function to create a new MarkerLine
-function createMarkerLine(initialX: number, initialY: number, thickness: number): MarkerLine {
+function createMarkerLine(initialX: number, initialY: number, thickness: number, color: string): MarkerLine {
     const points = [{ x: initialX, y: initialY }];
     
     return {
         points,
         thickness,
+        color,
         drag(x: number, y: number) {
             points.push({ x, y });
         },
         display(ctx: CanvasRenderingContext2D) {
             ctx.lineWidth = thickness; // Use the specified thickness
+            ctx.strokeStyle = color; // Use the specified color
             ctx.beginPath();
             ctx.moveTo(points[0].x, points[0].y);
             for (const point of points) {
@@ -164,6 +167,24 @@ const exportButton = document.createElement('button');
 exportButton.textContent = 'Export';
 app.append(exportButton);
 
+// Create color slider
+const colorSlider = document.createElement('input');
+colorSlider.type = 'range';
+colorSlider.min = '0';
+colorSlider.max = '360';
+colorSlider.value = '0'; // Default hue value
+colorSlider.style.width = '200px'; // Adjust width as needed
+app.append(colorSlider);
+
+// Create a color preview box
+const colorPreview = document.createElement('div');
+colorPreview.style.width = '50px'; // Width of the preview box
+colorPreview.style.height = '30px'; // Height of the preview box
+colorPreview.style.border = '1px solid #000'; // Optional border for visibility
+colorPreview.style.display = 'inline-block'; // Align it with the slider
+colorPreview.style.marginLeft = '10px'; // Space between slider and preview
+app.append(colorPreview);
+
 // Get the canvas context
 const ctx = canvas.getContext('2d');
 
@@ -180,7 +201,8 @@ const redoStack: Drawable[] = [];
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
-    currentLine = createMarkerLine(event.offsetX, event.offsetY, currentThickness); // Start a new line
+    const color = `hsl(${Number(colorSlider.value)}, 100%, 50%)`; // Get current color
+    currentLine = createMarkerLine(event.offsetX, event.offsetY, currentThickness, color);
 }
 
 // Function to draw on the canvas
@@ -219,7 +241,6 @@ function clearCanvas() {
 // Function to redraw the canvas
 function redraw() {
     ctx!.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-    ctx!.strokeStyle = 'black'; // Line color
 
     lines.forEach(line => line.display(ctx!)); // Display all lines
     if (currentLine) currentLine.display(ctx!); // Display the current line if drawing
@@ -306,8 +327,10 @@ canvas.addEventListener('drawing-changed', redraw);
 thinButton.addEventListener('click', () => setThickness(2, thinButton)); // Set thickness to 2 for thin marker
 thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Set thickness to 5 for thick marker
 
-// Set the thin marker as the default tool on load
+// Set UI defaults
 setThickness(2, thinButton); // Set initial thickness and style feedback
+colorSlider.value = '0'; // Initial slider value
+colorPreview.style.backgroundColor = `hsl(0, 100%, 50%)`; // Initial color
 
 // Handle canvas click to place sticker
 canvas.addEventListener('click', () => {
@@ -316,6 +339,12 @@ canvas.addEventListener('click', () => {
         currentSticker = null; // Reset current sticker
         dispatchDrawingChanged(); // Trigger a redraw
     }
+});
+
+colorSlider.addEventListener('input', () => {
+    const hue = Number(colorSlider.value);
+    colorPreview.style.backgroundColor = `hsl(${hue}, 100%, 50%)`; // Update preview color
+    redraw(); // Redraw canvas to update color based on the selected hue
 });
 
 // Dispatch tool-moved event
