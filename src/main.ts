@@ -122,12 +122,41 @@ const thickButton = document.createElement('button');
 thickButton.textContent = '●';
 app.append(thickButton);
 
-// Create emoji buttons
-const emojiButtons = ['😊', '🐶', '🎉'].map(emoji => {
+// Initial stickers defined in JSON format
+const initialStickers: string[] = ['😊', '🐶', '🎉'];
+
+// Emoji button listeners
+initialStickers.forEach(emoji => {
     const button = document.createElement('button');
     button.textContent = emoji;
     app.append(button);
-    return button;
+    
+    button.addEventListener('click', () => {
+        currentSticker = createSticker(emoji);
+        dispatchToolMoved(); // Dispatch tool-moved event when an emoji is selected
+    });
+});
+
+// Button for adding custom stickers
+const customStickerButton = document.createElement('button');
+customStickerButton.textContent = 'Add Custom Sticker';
+app.append(customStickerButton);
+
+// Event listener for custom sticker button
+customStickerButton.addEventListener('click', () => {
+    const newSticker = prompt("Enter a new sticker:", "✨");
+    if (newSticker) {
+        initialStickers.push(newSticker); // Add new sticker to the array
+        const button = document.createElement('button');
+        button.textContent = newSticker;
+        app.append(button);
+        
+        // Event listener for the new sticker button
+        button.addEventListener('click', () => {
+            currentSticker = createSticker(newSticker);
+            dispatchToolMoved(); // Dispatch tool-moved event when an emoji is selected
+        });
+    }
 });
 
 // Get the canvas context
@@ -249,14 +278,8 @@ canvas.addEventListener('drawing-changed', redraw);
 thinButton.addEventListener('click', () => setThickness(2, thinButton)); // Set thickness to 2 for thin marker
 thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Set thickness to 5 for thick marker
 
-// Emoji button listeners
-emojiButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-        const emoji = button.textContent || '';
-        currentSticker = createSticker(emoji);
-        dispatchToolMoved(); // Dispatch tool-moved event when an emoji is selected
-    });
-});
+// Set the thin marker as the default tool on load
+setThickness(2, thinButton); // Set initial thickness and style feedback
 
 // Handle canvas click to place sticker
 canvas.addEventListener('click', () => {
@@ -266,9 +289,6 @@ canvas.addEventListener('click', () => {
         dispatchDrawingChanged(); // Trigger a redraw
     }
 });
-
-// Set the thin marker as the default tool on load
-setThickness(2, thinButton); // Set initial thickness and style feedback
 
 // Dispatch tool-moved event
 function dispatchToolMoved() {
