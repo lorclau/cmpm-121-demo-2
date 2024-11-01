@@ -159,6 +159,11 @@ customStickerButton.addEventListener('click', () => {
     }
 });
 
+// Create export button
+const exportButton = document.createElement('button');
+exportButton.textContent = 'Export';
+app.append(exportButton);
+
 // Get the canvas context
 const ctx = canvas.getContext('2d');
 
@@ -250,6 +255,29 @@ function setThickness(thickness: number, selectedButton: HTMLButtonElement) {
     thickButton.classList.remove('selectedTool');
     selectedButton.classList.add('selectedTool');
 }
+
+// Export functionality
+exportButton.addEventListener('click', () => {
+    // Create a new canvas and context
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+    const exportCtx = exportCanvas.getContext('2d');
+
+    if (!exportCtx) return; // Safety check
+
+    // Scale the context
+    exportCtx.scale(4, 4); // Scale up by 4x
+
+    // Redraw all lines to the new canvas using the same command objects
+    lines.forEach(line => line.display(exportCtx)); // Use the same display method
+
+    // Create a PNG file from the new canvas using anchor
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
+});
 
 // Event listeners
 canvas.addEventListener('mousedown', startDrawing);
