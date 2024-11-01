@@ -72,7 +72,7 @@ canvas {
 }
 
 .selectedTool {
-  background-color: #007BFF;
+  background-color: #00ff6a;
   color: white;
 }
 
@@ -89,7 +89,7 @@ button {
   transition: border-color 0.25s;
 }
 button:hover {
-  border-color: #646cff;
+  border-color: #7bff64;
 }
 button:focus,
 button:focus-visible {

@@ -1,4 +1,4 @@
-// Define the MarkerLine interface
+// Define MarkerLine interface
 interface MarkerLine {
     points: Array<{ x: number; y: number }>;
     thickness: number; // Added thickness property
@@ -6,7 +6,7 @@ interface MarkerLine {
     display(ctx: CanvasRenderingContext2D): void;
 }
 
-// Define the ToolPreview interface
+// Define ToolPreview interface
 interface ToolPreview {
     x: number;
     y: number;
@@ -14,7 +14,7 @@ interface ToolPreview {
     draw(ctx: CanvasRenderingContext2D): void;
 }
 
-// Sticker interface
+// Define Sticker interface
 interface Sticker {
     x: number;
     y: number;
