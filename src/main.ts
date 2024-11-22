@@ -23,6 +23,11 @@ interface Sticker {
     display(ctx: CanvasRenderingContext2D): void;
 }
 
+enum ColorMode {
+    RGB,
+    HSL
+}
+
 // Create a union type for lines and stickers
 type Drawable = MarkerLine | Sticker;
 
@@ -86,15 +91,24 @@ function createSticker(emoji: string): Sticker {
 import "./style.css";
 
 const APP_NAME = "Sketchpad:";
+const title = document.querySelector<HTMLDivElement>("#title")!;
+const uToolbar = document.querySelector<HTMLDivElement>("#upper-toolbar")!;
 const app = document.querySelector<HTMLDivElement>("#app")!;
+const lToolbar = document.querySelector<HTMLDivElement>("#lower-toolbar")!;
 
 document.title = APP_NAME;
-app.innerHTML = APP_NAME;
+
+const colorUpdated : Event = new Event("color-updated");
+
+const curColor : number[] = [0,1,0.5];
+const colorSliders : HTMLInputElement[] = [];
+const colorText : HTMLSpanElement[] = [];
+let colorMode : ColorMode = ColorMode.HSL;
 
 // Create the app title
 const appTitle = document.createElement('h1');
 appTitle.textContent = 'Scribbler';
-app.append(appTitle);
+title.append(appTitle);
 
 // Create the canvas
 const canvas = document.createElement('canvas');
@@ -105,16 +119,16 @@ app.append(canvas);
 // Create a clear button
 const clearButton = document.createElement('button');
 clearButton.textContent = 'Clear';
-app.append(clearButton);
+uToolbar.append(clearButton);
 
 // Create an undo and redo button
 const undoButton = document.createElement('button');
 undoButton.textContent = 'Undo';
-app.append(undoButton);
+uToolbar.append(undoButton);
 
 const redoButton = document.createElement('button');
 redoButton.textContent = 'Redo';
-app.append(redoButton);
+uToolbar.append(redoButton);
 
 // Create tool buttons
 const thinButton = document.createElement('button');
@@ -143,7 +157,7 @@ initialStickers.forEach(emoji => {
 // Button for adding custom stickers
 const customStickerButton = document.createElement('button');
 customStickerButton.textContent = 'Add Custom Sticker';
-app.append(customStickerButton);
+uToolbar.append(customStickerButton);
 
 // Event listener for custom sticker button
 customStickerButton.addEventListener('click', () => {
@@ -165,16 +179,7 @@ customStickerButton.addEventListener('click', () => {
 // Create export button
 const exportButton = document.createElement('button');
 exportButton.textContent = 'Export';
-app.append(exportButton);
-
-// Create color slider
-const colorSlider = document.createElement('input');
-colorSlider.type = 'range';
-colorSlider.min = '0';
-colorSlider.max = '360';
-colorSlider.value = '0'; // Default hue value
-colorSlider.style.width = '200px'; // Adjust width as needed
-app.append(colorSlider);
+uToolbar.append(exportButton);
 
 // Create a color preview box
 const colorPreview = document.createElement('div');
@@ -183,7 +188,70 @@ colorPreview.style.height = '30px'; // Height of the preview box
 colorPreview.style.border = '1px solid #000'; // Optional border for visibility
 colorPreview.style.display = 'inline-block'; // Align it with the slider
 colorPreview.style.marginLeft = '10px'; // Space between slider and preview
-app.append(colorPreview);
+lToolbar.append(colorPreview);
+
+const toggleColorButton = document.createElement('button');
+toggleColorButton.innerHTML = "Toggle Color Mode";
+toggleColorButton.addEventListener("click", () => {
+    colorMode = 1 - colorMode;
+    setSliderText();
+    canvas.dispatchEvent(colorUpdated);
+})
+lToolbar.append(toggleColorButton);
+
+function formatMarkerColor() : string{
+    switch(colorMode) {
+        case ColorMode.RGB:
+            return `rgb(${curColor[0]*255}, ${curColor[1]*255}, ${curColor[2]*255})`
+        case ColorMode.HSL:
+            return `hsl(${curColor[0]*360}, ${curColor[1]*100}%, ${curColor[2]*100}%)`
+    }
+}
+
+// Create color slider
+function createSlider(index = 0) {
+    const colorSlider = document.createElement('input');
+    colorSliders[index] = colorSlider
+    colorSlider.type = 'range';
+    colorSlider.min = '0';
+    colorSlider.max = `1`;
+    colorSlider.step = `.001`
+    colorSlider.value = `${curColor[index]}`; // Default hue value
+    colorSlider.style.width = '200px'; // Adjust width as needed
+    colorSlider.addEventListener('input', () => {
+        curColor[index] = Number(colorSlider.value);
+        canvas.dispatchEvent(colorUpdated);
+        redraw(); // Redraw canvas to update color based on the selected hue
+    });
+    lToolbar.append(document.createElement("br"));
+    colorText[index] = document.createElement("span");
+    lToolbar.append(colorText[index]);
+    lToolbar.append(colorSlider);
+}
+
+function setSliderText() {
+    switch(colorMode) {
+        case ColorMode.RGB:
+            colorText[0].innerHTML = "R: ";
+            colorText[1].innerHTML = "G: ";
+            colorText[2].innerHTML = "B: ";
+            break;
+        case ColorMode.HSL:
+            colorText[0].innerHTML = "H: ";
+            colorText[1].innerHTML = "S: ";
+            colorText[2].innerHTML = "L: ";
+            break;
+    }
+}
+
+canvas.addEventListener("color-updated", () => {
+    colorPreview.style.backgroundColor = formatMarkerColor();
+}) 
+
+for (let i = 0; i < 3; i++) {
+    createSlider(i);
+}
+setSliderText();
 
 // Get the canvas context
 const ctx = canvas.getContext('2d');
@@ -201,7 +269,7 @@ const redoStack: Drawable[] = [];
 // Function to start drawing
 function startDrawing(event: MouseEvent) {
     isDrawing = true;
-    const color = `hsl(${Number(colorSlider.value)}, 100%, 50%)`; // Get current color
+    const color = formatMarkerColor(); // Get current color
     currentLine = createMarkerLine(event.offsetX, event.offsetY, currentThickness, color);
 }
 
@@ -329,8 +397,7 @@ thickButton.addEventListener('click', () => setThickness(5, thickButton)); // Se
 
 // Set UI defaults
 setThickness(2, thinButton); // Set initial thickness and style feedback
-colorSlider.value = '0'; // Initial slider value
-colorPreview.style.backgroundColor = `hsl(0, 100%, 50%)`; // Initial color
+colorPreview.style.backgroundColor =  formatMarkerColor(); // Initial color
 
 // Handle canvas click to place sticker
 canvas.addEventListener('click', () => {
@@ -341,11 +408,7 @@ canvas.addEventListener('click', () => {
     }
 });
 
-colorSlider.addEventListener('input', () => {
-    const hue = Number(colorSlider.value);
-    colorPreview.style.backgroundColor = `hsl(${hue}, 100%, 50%)`; // Update preview color
-    redraw(); // Redraw canvas to update color based on the selected hue
-});
+
 
 // Dispatch tool-moved event
 function dispatchToolMoved() {
